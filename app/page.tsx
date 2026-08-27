@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import {
   ArrivalInfo,
   RouteExample,
+  Schedule,
   Stop,
+  estimateSchedule,
   findNearestStop,
   findRoute,
   getArrivalInfo,
+  needsNoTransfer,
 } from "@/lib/transit/fixtures";
 
 function formatDuration(seconds: number) {
@@ -19,6 +22,12 @@ function formatDuration(seconds: number) {
   const remainder = seconds % 60;
   if (minutes === 0) return `${remainder}초`;
   return `${minutes}분 ${remainder}초`;
+}
+
+function formatTime(date: Date) {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 function legLabel(leg: RouteExample["firstLeg"]) {
@@ -31,8 +40,15 @@ export default function Home() {
   const [result, setResult] = useState<
     | { status: "idle" }
     | { status: "no-stop-match" }
+    | { status: "no-transfer-needed"; origin: Stop; destination: Stop }
     | { status: "no-route-match"; origin: Stop; destination: Stop }
-    | { status: "found"; origin: Stop; destination: Stop; route: RouteExample }
+    | {
+        status: "found";
+        origin: Stop;
+        destination: Stop;
+        route: RouteExample;
+        schedule: Schedule;
+      }
   >({ status: "idle" });
   const [arrival, setArrival] = useState<ArrivalInfo | null>(null);
 
@@ -46,13 +62,19 @@ export default function Home() {
       return;
     }
 
+    if (needsNoTransfer(origin, destination)) {
+      setResult({ status: "no-transfer-needed", origin, destination });
+      return;
+    }
+
     const route = findRoute(origin, destination);
     if (!route) {
       setResult({ status: "no-route-match", origin, destination });
       return;
     }
 
-    setResult({ status: "found", origin, destination, route });
+    const schedule = estimateSchedule(route, new Date());
+    setResult({ status: "found", origin, destination, route, schedule });
   }
 
   function handleCheckArrival() {
@@ -97,8 +119,15 @@ export default function Home() {
 
         {result.status === "no-stop-match" && (
           <p className="text-sm text-muted-foreground" role="status">
-            예시 데이터에 있는 지명을 입력해 주세요. (예: 판교역, 여의도, 잠실역, 합정, 평촌역,
-            마곡나루역)
+            예시 데이터에 있는 지명을 입력해 주세요. (예: 판교역, 여의도, 잠실역, 합정, 또는
+            4호선·9호선의 역 이름 아무거나)
+          </p>
+        )}
+
+        {result.status === "no-transfer-needed" && (
+          <p className="text-sm text-muted-foreground" role="status">
+            {result.origin.name}에서 {result.destination.name}까지는 같은 노선이라 환승이
+            필요 없는 구간이에요.
           </p>
         )}
 
@@ -119,6 +148,14 @@ export default function Home() {
                 {result.origin.name} → {legLabel(result.route.firstLeg)} →{" "}
                 <span className="font-medium">{result.route.transferStop.name}</span>{" "}
                 (환승) → {legLabel(result.route.nextLeg)} → {result.destination.name}
+              </p>
+
+              <p className="text-muted-foreground">
+                출발역 시각 {formatTime(result.schedule.departureTime)} · 환승역 도착 예정{" "}
+                {formatTime(result.schedule.transferArrivalTime)}
+                <span className="block text-xs">
+                  (실제 시각표가 아닌, 현재 시각 기준 추정치예요)
+                </span>
               </p>
 
               <div className="flex flex-col gap-2 rounded-2xl bg-muted p-4">

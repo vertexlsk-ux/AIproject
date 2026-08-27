@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import Home from "@/app/page";
 
@@ -12,6 +12,23 @@ function search(origin: string, destination: string) {
   });
   fireEvent.click(screen.getByRole("button", { name: "경로 찾기" }));
 }
+
+test("경로를 찾으면 현재 시각 기준 출발역 시각과 환승역 도착 예정 시각이 표시된다", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
+
+  try {
+    render(<Home />);
+
+    search("판교역", "잠실역");
+
+    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35이 표시돼야 한다.
+    expect(screen.getByText(/09:00/)).toBeInTheDocument();
+    expect(screen.getByText(/09:35/)).toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
 
 test("예시 지명으로 경로를 찾으면 환승 지점을 포함한 경로가 표시된다", () => {
   render(<Home />);
@@ -32,13 +49,21 @@ test("환승 지점에서 도착 정보 확인을 누르면 도착 예정 시간
   expect(screen.getByText(/도착까지/)).toBeInTheDocument();
 });
 
-test("평촌역에서 마곡나루역까지 경로를 찾으면 여의도역 환승과 9호선이 표시된다", () => {
+test("평촌역(4호선)에서 마곡나루역(9호선)까지 경로를 찾으면 동작역 환승과 9호선이 표시된다", () => {
   render(<Home />);
 
   search("평촌역", "마곡나루역");
 
-  expect(screen.getAllByText(/여의도역/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/동작역/).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/지하철 9호선/).length).toBeGreaterThan(0);
+});
+
+test("같은 노선(4호선)의 두 역을 입력하면 환승이 필요 없다는 안내가 표시된다", () => {
+  render(<Home />);
+
+  search("혜화역", "사당역");
+
+  expect(screen.getByText(/같은 노선이라 환승이/)).toBeInTheDocument();
 });
 
 test("평촌역→마곡나루역 경로에서도 도착 정보 확인을 누르면 도착 예정 시간이 표시된다", () => {
