@@ -61,7 +61,7 @@ test("이전/다음 버튼이 추천 경로 텍스트보다 앞에 나온다", (
   ).toBeTruthy();
 });
 
-test("경로를 찾으면 환승 지점에서 탈 다음 교통편의 출발 예정 시각이 5개 목록으로 표시된다", () => {
+test("경로를 찾으면 환승 지점에서 탈 다음 교통편의 출발 예정 시각이 3개 목록으로 표시된다", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
 
@@ -70,12 +70,10 @@ test("경로를 찾으면 환승 지점에서 탈 다음 교통편의 출발 예
 
     search("판교역", "잠실역");
 
-    // 도착 예정 09:35에 2호선 평시 배차간격(6분)을 1~5번 더한 값들.
+    // 도착 예정 09:35에 2호선 평시 배차간격(6분)을 1~3번 더한 값들.
     expect(screen.getByText("09:41")).toBeInTheDocument();
     expect(screen.getByText("09:47")).toBeInTheDocument();
     expect(screen.getByText("09:53")).toBeInTheDocument();
-    expect(screen.getByText("09:59")).toBeInTheDocument();
-    expect(screen.getByText("10:05")).toBeInTheDocument();
   } finally {
     vi.useRealTimers();
   }

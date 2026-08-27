@@ -108,10 +108,11 @@ describe("findRoute", () => {
     expect(route).toBeUndefined();
   });
 
-  test("평촌역(4호선)에서 잠실역(2·8호선)까지 환승 1회 경로를 반환한다", () => {
+  test("평촌역(4호선)에서 잠실역(2·8호선)까지 환승 1회 경로를 반환한다 (4호선·2호선이 동대문역사문화공원역과도 만나지만, 최단 거리인 사당역에서 환승한다)", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("잠실역")!);
 
     expect(route?.transferStops).toHaveLength(1);
+    expect(route?.transferStops[0].name).toBe("사당역");
     expect(route?.legs[0].line).toBe("4호선");
     expect(route?.legs[1].line).toBe("2호선");
     expect(route?.legs[1].to.name).toBe("잠실역");
@@ -120,13 +121,13 @@ describe("findRoute", () => {
     expect(route?.legs[1].from.name).toBe(route?.transferStops[0].name);
   });
 
-  test("평촌역(4호선)에서 도곡역(3호선)까지 환승 1회 경로를 반환한다", () => {
+  test("평촌역(4호선)에서 도곡역(3호선)까지는 충무로역 1회 환승보다, 사당역·교대역을 거치는 2회 환승이 총 이동 역 수가 더 적어 그쪽을 반환한다", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("도곡역")!);
 
-    expect(route?.transferStops).toHaveLength(1);
-    expect(route?.legs[0].line).toBe("4호선");
-    expect(route?.legs[1].line).toBe("3호선");
-    expect(route?.legs[1].to.name).toBe("도곡역");
+    expect(route?.transferStops).toHaveLength(2);
+    expect(route?.transferStops.map((stop) => stop.name)).toEqual(["사당역", "교대역"]);
+    expect(route?.legs.map((leg) => leg.line)).toEqual(["4호선", "2호선", "3호선"]);
+    expect(route?.legs.at(-1)?.to.name).toBe("도곡역");
   });
 
   test("직접 연결되지 않는 먼 노선끼리는 환승 2회 경로도 찾는다 (모란역→청량리역)", () => {
@@ -161,7 +162,7 @@ describe("estimateSchedule", () => {
     expect(schedule.departureTime).toEqual(now);
   });
 
-  test("환승 1회 경로는 환승역 도착 예정 시각 1개와 출발 예정 시각 5개짜리 목록 1개를 반환한다", () => {
+  test("환승 1회 경로는 환승역 도착 예정 시각 1개와 출발 예정 시각 3개짜리 목록 1개를 반환한다", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("마곡나루역")!)!;
     const now = new Date(2026, 0, 1, 9, 0, 0);
 
@@ -170,7 +171,7 @@ describe("estimateSchedule", () => {
     // 4호선 노선 순서상 평촌역과 동작역 사이는 11개 역 차이(22분)이므로 09:00+22분=09:22.
     expect(schedule.transferArrivalTimes).toEqual([new Date(2026, 0, 1, 9, 22, 0)]);
     expect(schedule.upcomingDeparturesByTransfer).toHaveLength(1);
-    expect(schedule.upcomingDeparturesByTransfer[0]).toHaveLength(5);
+    expect(schedule.upcomingDeparturesByTransfer[0]).toHaveLength(3);
   });
 
   test("환승 2회 경로는 두 환승역 모두 도착 예정 시각과 출발 예정 시각 3개짜리 목록을 반환한다", () => {
@@ -199,8 +200,6 @@ describe("estimateSchedule", () => {
       new Date(2026, 0, 1, 9, 33, 0),
       new Date(2026, 0, 1, 9, 44, 0),
       new Date(2026, 0, 1, 9, 55, 0),
-      new Date(2026, 0, 1, 10, 6, 0),
-      new Date(2026, 0, 1, 10, 17, 0),
     ]);
   });
 });

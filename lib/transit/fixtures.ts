@@ -146,43 +146,75 @@ function stationDistance(lineNames: readonly string[], fromName: string, toName:
   return Math.abs(lineNames.indexOf(fromName) - lineNames.indexOf(toName));
 }
 
-function sharedStation(a: LineDef, b: LineDef): string | undefined {
-  return a.stations.find((name) => b.stations.includes(name));
+function sharedStations(a: LineDef, b: LineDef): string[] {
+  return a.stations.filter((name) => b.stations.includes(name));
 }
 
 // 환승을 몇 번까지 허용해 경로를 찾을지 (환승 횟수 = 거치는 노선 수 - 1).
 const MAX_TRANSFERS = 2;
 
+type RouteCandidate = { linePath: LineDef[]; transferNames: string[]; totalStationDistance: number };
+
 /**
- * 출발역이 속한 노선에서 도착역이 속한 노선까지, 몇 번 환승하면 닿을 수 있는지
- * 노선 단위로 너비 우선 탐색한다. 노선 목록(LINE_DEFS)에 실제로 존재하는 두 역
- * 사이의 환승만 이용하며, MAX_TRANSFERS를 넘는 경로는 찾지 않는다.
+ * 출발역에서 도착역까지, 환승 최대 2회 안에서 실제로 존재하는 모든 노선 경로를
+ * 탐색해 총 이동 역 수가 가장 적은(= 가장 빠른) 조합을 고른다. 두 노선이 역을
+ * 여러 개 공유하면(예: 4호선·2호선은 동대문역사문화공원역과 사당역 둘 다 공유)
+ * 그중 총 거리가 가장 짧아지는 역을 환승역으로 고른다.
  */
-function findLinePath(originName: string, destinationName: string): LineDef[] | undefined {
-  const originLines = linesContaining(originName);
-  const destinationLines = linesContaining(destinationName);
+function findBestRoute(origin: Stop, destination: Stop): RouteCandidate | undefined {
+  const originLines = linesContaining(origin.name);
+  const destinationLines = linesContaining(destination.name);
   if (originLines.length === 0 || destinationLines.length === 0) return undefined;
 
   const destinationSet = new Set(destinationLines);
-  const visited = new Set<LineDef>(originLines);
-  const queue: LineDef[][] = originLines.map((line) => [line]);
+  let best: RouteCandidate | undefined;
 
-  while (queue.length > 0) {
-    const path = queue.shift()!;
+  function evaluatePath(linePath: LineDef[]) {
+    const candidateListsPerJunction = linePath
+      .slice(0, -1)
+      .map((line, i) => sharedStations(line, linePath[i + 1]));
+
+    function search(junctionIndex: number, transferNames: string[]) {
+      if (junctionIndex === candidateListsPerJunction.length) {
+        const stopNames = [origin.name, ...transferNames, destination.name];
+        let totalStationDistance = 0;
+        for (let i = 0; i < linePath.length; i++) {
+          totalStationDistance += stationDistance(linePath[i].stations, stopNames[i], stopNames[i + 1]);
+        }
+        if (!best || totalStationDistance < best.totalStationDistance) {
+          best = { linePath, transferNames: [...transferNames], totalStationDistance };
+        }
+        return;
+      }
+      for (const candidate of candidateListsPerJunction[junctionIndex]) {
+        search(junctionIndex + 1, [...transferNames, candidate]);
+      }
+    }
+
+    search(0, []);
+  }
+
+  function dfs(path: LineDef[]) {
     const last = path[path.length - 1];
-    if (destinationSet.has(last)) return path;
-    if (path.length > MAX_TRANSFERS) continue;
+    if (destinationSet.has(last)) {
+      evaluatePath(path);
+      return;
+    }
+    if (path.length > MAX_TRANSFERS) return;
 
     for (const next of LINE_DEFS) {
-      if (visited.has(next)) continue;
-      if (sharedStation(last, next)) {
-        visited.add(next);
-        queue.push([...path, next]);
+      if (path.includes(next)) continue;
+      if (sharedStations(last, next).length > 0) {
+        dfs([...path, next]);
       }
     }
   }
 
-  return undefined;
+  for (const line of originLines) {
+    dfs([line]);
+  }
+
+  return best;
 }
 
 export type Leg = {
@@ -201,12 +233,12 @@ export type RouteExample = {
   transferStops: Stop[];
 };
 
-function buildRouteFromLinePath(origin: Stop, destination: Stop, linePath: LineDef[]): RouteExample {
-  const transferNames: string[] = [];
-  for (let i = 0; i < linePath.length - 1; i++) {
-    transferNames.push(sharedStation(linePath[i], linePath[i + 1])!);
-  }
-
+function buildRoute(
+  origin: Stop,
+  destination: Stop,
+  linePath: LineDef[],
+  transferNames: string[]
+): RouteExample {
   const stopNames = [origin.name, ...transferNames, destination.name];
   const legs: Leg[] = linePath.map((line, i) => {
     const fromName = stopNames[i];
@@ -224,15 +256,15 @@ function buildRouteFromLinePath(origin: Stop, destination: Stop, linePath: LineD
 }
 
 /**
- * 1~9호선 노선 목록을 기반으로, 두 역 사이에 실제로 존재하는 환승역을 거치는
- * 경로를 생성한다(환승 최대 2회). 두 역이 같은 노선을 이미 공유한다면(환승이
- * 필요 없다면) undefined를 반환한다.
+ * 1~9호선 노선 목록을 기반으로, 두 역 사이에서 총 이동 역 수가 가장 적은(=
+ * 가장 빠른) 경로를 생성한다(환승 최대 2회). 두 역이 같은 노선을 이미
+ * 공유한다면(환승이 필요 없다면) undefined를 반환한다.
  */
 function generateLineGraphRoute(origin: Stop, destination: Stop): RouteExample | undefined {
   if (needsNoTransfer(origin, destination)) return undefined;
-  const linePath = findLinePath(origin.name, destination.name);
-  if (!linePath) return undefined;
-  return buildRouteFromLinePath(origin, destination, linePath);
+  const best = findBestRoute(origin, destination);
+  if (!best) return undefined;
+  return buildRoute(origin, destination, best.linePath, best.transferNames);
 }
 
 const GANGNAM_BUS: Stop = { id: "seoul-gangnam-bus-stop", name: "강남역", mode: "bus" };
@@ -285,10 +317,8 @@ export type Schedule = {
   upcomingDeparturesByTransfer: Date[][];
 };
 
-// 환승 1회짜리 경로는 5개, 환승 2회짜리 경로는 (한 줄에 보기 좋도록) 환승역마다 3개까지 보여준다.
-function upcomingDepartureCount(transferCount: number): number {
-  return transferCount <= 1 ? 5 : 3;
-}
+// 환승 지점마다 보여줄 출발 예정 시각 개수.
+const UPCOMING_DEPARTURE_COUNT = 3;
 
 // 출퇴근 시간대(07~09시, 18~20시)인지 여부. 노선별 배차간격 추정에 사용한다.
 function isRushHour(now: Date): boolean {
@@ -331,7 +361,6 @@ export function shiftDepartureTime(route: RouteExample, baseTime: Date, steps: n
  */
 export function estimateSchedule(route: RouteExample, now: Date): Schedule {
   const transferCount = route.transferStops.length;
-  const departureCount = upcomingDepartureCount(transferCount);
 
   const transferArrivalTimes: Date[] = [];
   const upcomingDeparturesByTransfer: Date[][] = [];
@@ -343,7 +372,7 @@ export function estimateSchedule(route: RouteExample, now: Date): Schedule {
 
     const waitMinutes = estimateWaitMinutes(route.legs[i + 1], arrival);
     const upcoming = Array.from(
-      { length: departureCount },
+      { length: UPCOMING_DEPARTURE_COUNT },
       (_, index) => new Date(arrival.getTime() + waitMinutes * (index + 1) * 60_000)
     );
     upcomingDeparturesByTransfer.push(upcoming);
