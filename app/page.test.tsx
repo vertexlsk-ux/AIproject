@@ -22,10 +22,10 @@ test("경로를 찾으면 출발역 아래에 출발 시각, 환승역 아래에
 
     search("판교역", "잠실역");
 
-    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35, 거기에 환승 대기(5분)를 더한 09:40.
+    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35, 거기에 2호선 평시 배차간격(6분)을 더한 09:41.
     expect(screen.getByText(/출발 시각 09:00/)).toBeInTheDocument();
     expect(screen.getByText(/도착 예정 09:35/)).toBeInTheDocument();
-    expect(screen.getByText(/환승 열차\s*출발 예정 09:40/)).toBeInTheDocument();
+    expect(screen.getByText(/환승 열차\s*출발 예정 09:41/)).toBeInTheDocument();
   } finally {
     vi.useRealTimers();
   }

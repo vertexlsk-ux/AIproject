@@ -176,19 +176,39 @@ export type Schedule = {
   connectingDepartureTime: Date;
 };
 
-// 환승역에 도착해서 다음 열차/버스가 출발할 때까지 걸린다고 가정하는 대기 시간.
-const TRANSFER_WAIT_MINUTES = 5;
+// 출퇴근 시간대(07~09시, 18~20시)인지 여부. 노선별 배차간격 추정에 사용한다.
+function isRushHour(now: Date): boolean {
+  const hour = now.getHours();
+  return (hour >= 7 && hour < 9) || (hour >= 18 && hour < 20);
+}
+
+// 노선별로 검색해 확인한 대략적인 실제 배차간격(분). [출퇴근, 평시] 순서다.
+// 4호선은 사당 이북(밀도 높은 구간) 기준, 9호선은 일반 열차 기준.
+const LINE_HEADWAY_MINUTES: Record<string, [number, number]> = {
+  "2호선": [2, 6],
+  "4호선": [3, 5],
+  "9호선": [7, 11],
+};
+
+// 배차간격 근거를 찾지 못한 노선·버스에 쓰는 대략적인 기본값.
+const DEFAULT_HEADWAY_MINUTES: [number, number] = [6, 10];
+
+function estimateWaitMinutes(leg: Leg, now: Date): number {
+  const [rushMinutes, offPeakMinutes] =
+    LINE_HEADWAY_MINUTES[leg.line] ?? DEFAULT_HEADWAY_MINUTES;
+  return isRushHour(now) ? rushMinutes : offPeakMinutes;
+}
 
 /**
  * 경로찾기를 누른 시각을 출발역 시각으로 삼아, 첫 구간의 예상 소요 시간만큼 더한
- * 환승역 도착 예정 시각과, 거기에 환승 대기 시간을 더한 환승 열차 출발 예정 시각을
- * 계산한다. 실제 열차 시각표를 조회하지 않는 추정치다.
+ * 환승역 도착 예정 시각과, 거기에 환승 대기 시간(다음 구간 노선의 실제 배차간격을
+ * 참고한 추정치)을 더한 환승 열차 출발 예정 시각을 계산한다. 실제 열차 시각표를
+ * 조회하지 않는 추정치다.
  */
 export function estimateSchedule(route: RouteExample, now: Date): Schedule {
   const transferArrivalTime = new Date(now.getTime() + route.firstLeg.durationMinutes * 60_000);
-  const connectingDepartureTime = new Date(
-    transferArrivalTime.getTime() + TRANSFER_WAIT_MINUTES * 60_000
-  );
+  const waitMinutes = estimateWaitMinutes(route.nextLeg, now);
+  const connectingDepartureTime = new Date(transferArrivalTime.getTime() + waitMinutes * 60_000);
 
   return {
     departureTime: now,
