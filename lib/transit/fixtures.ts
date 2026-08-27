@@ -173,8 +173,11 @@ export function findRoute(origin: Stop, destination: Stop): RouteExample | undef
 export type Schedule = {
   departureTime: Date;
   transferArrivalTime: Date;
-  connectingDepartureTime: Date;
+  upcomingDepartures: Date[];
 };
+
+// 환승 지점에서 탈 다음 교통편의 출발 예정 시각을 몇 개까지 보여줄지.
+const UPCOMING_DEPARTURE_COUNT = 5;
 
 // 출퇴근 시간대(07~09시, 18~20시)인지 여부. 노선별 배차간격 추정에 사용한다.
 function isRushHour(now: Date): boolean {
@@ -201,60 +204,21 @@ function estimateWaitMinutes(leg: Leg, now: Date): number {
 
 /**
  * 경로찾기를 누른 시각을 출발역 시각으로 삼아, 첫 구간의 예상 소요 시간만큼 더한
- * 환승역 도착 예정 시각과, 거기에 환승 대기 시간(다음 구간 노선의 실제 배차간격을
- * 참고한 추정치)을 더한 환승 열차 출발 예정 시각을 계산한다. 실제 열차 시각표를
- * 조회하지 않는 추정치다.
+ * 환승역 도착 예정 시각과, 환승 지점에서 탈 다음 교통편의 출발 예정 시각 목록을
+ * 계산한다. 출발 예정 시각은 다음 구간 노선의 실제 배차간격을 참고한 추정치를
+ * 등간격으로 반복해 만든다. 실제 열차 시각표를 조회하지 않는 추정치다.
  */
 export function estimateSchedule(route: RouteExample, now: Date): Schedule {
   const transferArrivalTime = new Date(now.getTime() + route.firstLeg.durationMinutes * 60_000);
   const waitMinutes = estimateWaitMinutes(route.nextLeg, now);
-  const connectingDepartureTime = new Date(transferArrivalTime.getTime() + waitMinutes * 60_000);
+  const upcomingDepartures = Array.from(
+    { length: UPCOMING_DEPARTURE_COUNT },
+    (_, index) => new Date(transferArrivalTime.getTime() + waitMinutes * (index + 1) * 60_000)
+  );
 
   return {
     departureTime: now,
     transferArrivalTime,
-    connectingDepartureTime,
-  };
-}
-
-export type BusArrivalInfo = {
-  mode: "bus";
-  line: string;
-  arrivalSeconds: number;
-  stopsRemaining: number;
-  vehicleType: "저상버스" | "일반버스";
-};
-
-export type SubwayArrivalInfo = {
-  mode: "subway";
-  line: string;
-  arrivalSeconds: number;
-  trainType: "일반" | "급행";
-  destinationName: string;
-};
-
-export type ArrivalInfo = BusArrivalInfo | SubwayArrivalInfo;
-
-function randomInRange(min: number, max: number): number {
-  return Math.floor(min + Math.random() * (max - min));
-}
-
-export function getArrivalInfo(leg: Leg): ArrivalInfo {
-  if (leg.mode === "bus") {
-    return {
-      mode: "bus",
-      line: leg.line,
-      arrivalSeconds: randomInRange(60, 600),
-      stopsRemaining: randomInRange(1, 8),
-      vehicleType: Math.random() < 0.5 ? "저상버스" : "일반버스",
-    };
-  }
-
-  return {
-    mode: "subway",
-    line: leg.line,
-    arrivalSeconds: randomInRange(60, 600),
-    trainType: Math.random() < 0.2 ? "급행" : "일반",
-    destinationName: leg.to.name,
+    upcomingDepartures,
   };
 }

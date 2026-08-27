@@ -6,23 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  ArrivalInfo,
   RouteExample,
   Schedule,
   Stop,
   estimateSchedule,
   findNearestStop,
   findRoute,
-  getArrivalInfo,
   needsNoTransfer,
 } from "@/lib/transit/fixtures";
-
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  if (minutes === 0) return `${remainder}초`;
-  return `${minutes}분 ${remainder}초`;
-}
 
 function formatTime(date: Date) {
   const hours = String(date.getHours()).padStart(2, "0");
@@ -50,10 +41,8 @@ export default function Home() {
         schedule: Schedule;
       }
   >({ status: "idle" });
-  const [arrival, setArrival] = useState<ArrivalInfo | null>(null);
 
   function handleSearch() {
-    setArrival(null);
     const origin = findNearestStop(originInput.trim());
     const destination = findNearestStop(destinationInput.trim());
 
@@ -75,11 +64,6 @@ export default function Home() {
 
     const schedule = estimateSchedule(route, new Date());
     setResult({ status: "found", origin, destination, route, schedule });
-  }
-
-  function handleCheckArrival() {
-    if (result.status !== "found") return;
-    setArrival(getArrivalInfo(result.route.nextLeg));
   }
 
   return (
@@ -159,8 +143,7 @@ export default function Home() {
                 <div>
                   <p className="font-medium">{result.route.transferStop.name} (환승)</p>
                   <p className="text-xs text-muted-foreground">
-                    도착 예정 {formatTime(result.schedule.transferArrivalTime)} · 환승 열차
-                    출발 예정 {formatTime(result.schedule.connectingDepartureTime)}
+                    도착 예정 {formatTime(result.schedule.transferArrivalTime)}
                   </p>
                 </div>
 
@@ -178,25 +161,18 @@ export default function Home() {
               <div className="flex flex-col gap-2 rounded-2xl bg-muted p-4">
                 <p className="text-sm font-medium text-foreground">
                   {result.route.transferStop.name}에서 탈 다음{" "}
-                  {legLabel(result.route.nextLeg)}
+                  {legLabel(result.route.nextLeg)} 출발 예정
                 </p>
-                <Button variant="outline" onClick={handleCheckArrival}>
-                  도착 정보 확인
-                </Button>
-                {arrival && (
-                  <div className="text-sm text-muted-foreground" role="status">
-                    <p>도착까지 {formatDuration(arrival.arrivalSeconds)}</p>
-                    {arrival.mode === "bus" ? (
-                      <p>
-                        {arrival.stopsRemaining}개 정류장 전 · {arrival.vehicleType}
-                      </p>
-                    ) : (
-                      <p>
-                        {arrival.trainType} · {arrival.destinationName}행
-                      </p>
-                    )}
-                  </div>
-                )}
+                <ul className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                  {result.schedule.upcomingDepartures.map((departure, index) => (
+                    <li
+                      key={departure.getTime()}
+                      className="rounded-full bg-background px-3 py-1"
+                    >
+                      {index === 0 ? "다음" : `${index + 1}번째`} {formatTime(departure)}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </CardContent>
           </Card>

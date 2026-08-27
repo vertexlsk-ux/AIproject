@@ -4,7 +4,6 @@ import {
   estimateSchedule,
   findNearestStop,
   findRoute,
-  getArrivalInfo,
   needsNoTransfer,
 } from "@/lib/transit/fixtures";
 
@@ -178,27 +177,6 @@ describe("needsNoTransfer", () => {
   });
 });
 
-describe("getArrivalInfo", () => {
-  test("지하철 구간의 도착 정보는 mode가 subway이고 line이 구간의 노선과 같다", () => {
-    const route = findRoute(findNearestStop("판교역")!, findNearestStop("잠실역")!)!;
-
-    const info = getArrivalInfo(route.nextLeg);
-
-    expect(info.mode).toBe("subway");
-    expect(info.line).toBe("2호선");
-  });
-
-  test("여러 번 호출하면 도착예상시간 값이 달라질 수 있다", () => {
-    const route = findRoute(findNearestStop("판교역")!, findNearestStop("잠실역")!)!;
-
-    const observed = new Set(
-      Array.from({ length: 20 }, () => getArrivalInfo(route.nextLeg).arrivalSeconds)
-    );
-
-    expect(observed.size).toBeGreaterThan(1);
-  });
-});
-
 describe("estimateSchedule", () => {
   test("출발역 시각은 넘겨받은 현재 시각 그대로다", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("마곡나루역")!)!;
@@ -219,24 +197,30 @@ describe("estimateSchedule", () => {
     expect(schedule.transferArrivalTime).toEqual(new Date(2026, 0, 1, 9, 22, 0));
   });
 
-  test("평시(9호선, 09시)에는 9호선 평시 배차간격(11분)만큼 환승 대기 시간이 더해진다", () => {
+  test("평시(9호선, 09시)에는 9호선 평시 배차간격(11분) 간격으로 5개의 출발 예정 시각이 나온다", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("마곡나루역")!)!;
     const now = new Date(2026, 0, 1, 9, 0, 0);
 
     const schedule = estimateSchedule(route, now);
 
-    // 도착 예정 09:22에 9호선 평시 배차간격(11분)을 더한 09:33.
-    expect(schedule.connectingDepartureTime).toEqual(new Date(2026, 0, 1, 9, 33, 0));
+    // 도착 예정 09:22에 9호선 평시 배차간격(11분)을 1~5번 더한 09:33, 09:44, 09:55, 10:06, 10:17.
+    expect(schedule.upcomingDepartures).toEqual([
+      new Date(2026, 0, 1, 9, 33, 0),
+      new Date(2026, 0, 1, 9, 44, 0),
+      new Date(2026, 0, 1, 9, 55, 0),
+      new Date(2026, 0, 1, 10, 6, 0),
+      new Date(2026, 0, 1, 10, 17, 0),
+    ]);
   });
 
-  test("출퇴근 시간대(9호선, 08시)에는 9호선 출퇴근 배차간격(7분)만큼 환승 대기 시간이 더해진다", () => {
+  test("출퇴근 시간대(9호선, 08시)에는 9호선 출퇴근 배차간격(7분) 간격으로 출발 예정 시각이 나온다", () => {
     const route = findRoute(findNearestStop("평촌역")!, findNearestStop("마곡나루역")!)!;
     const now = new Date(2026, 0, 1, 8, 0, 0);
 
     const schedule = estimateSchedule(route, now);
 
     // 도착 예정 08:22에 9호선 출퇴근 배차간격(7분)을 더한 08:29.
-    expect(schedule.connectingDepartureTime).toEqual(new Date(2026, 0, 1, 8, 29, 0));
+    expect(schedule.upcomingDepartures[0]).toEqual(new Date(2026, 0, 1, 8, 29, 0));
   });
 
   test("4호선 구간은 9호선과 다른 배차간격(출퇴근 3분)이 적용된다", () => {
@@ -247,16 +231,16 @@ describe("estimateSchedule", () => {
 
     // 당산역(9호선)→동작역 14분이므로 도착 예정 08:14, 4호선 출퇴근 배차간격(3분)을 더한 08:17.
     expect(schedule.transferArrivalTime).toEqual(new Date(2026, 0, 1, 8, 14, 0));
-    expect(schedule.connectingDepartureTime).toEqual(new Date(2026, 0, 1, 8, 17, 0));
+    expect(schedule.upcomingDepartures[0]).toEqual(new Date(2026, 0, 1, 8, 17, 0));
   });
 
-  test("환승할 열차의 출발 예정 시각은 도착 예정 시각과 다르다", () => {
+  test("첫 출발 예정 시각은 도착 예정 시각보다 늦다", () => {
     const route = findRoute(findNearestStop("판교역")!, findNearestStop("잠실역")!)!;
     const now = new Date(2026, 0, 1, 9, 0, 0);
 
     const schedule = estimateSchedule(route, now);
 
-    expect(schedule.connectingDepartureTime.getTime()).toBeGreaterThan(
+    expect(schedule.upcomingDepartures[0].getTime()).toBeGreaterThan(
       schedule.transferArrivalTime.getTime()
     );
   });
