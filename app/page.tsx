@@ -97,7 +97,8 @@ export default function Home() {
 
         {result.status === "no-stop-match" && (
           <p className="text-sm text-muted-foreground" role="status">
-            예시 데이터에 있는 지명을 입력해 주세요. (예: 판교역, 여의도, 잠실역, 합정)
+            예시 데이터에 있는 지명을 입력해 주세요. (예: 판교역, 여의도, 잠실역, 합정, 평촌역,
+            마곡나루역)
           </p>
         )}
 

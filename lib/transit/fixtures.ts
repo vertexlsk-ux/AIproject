@@ -11,6 +11,8 @@ const STOPS_BY_PLACE: Record<string, Stop> = {
   잠실역: { id: "seoul-jamsil-station", name: "잠실역", mode: "subway" },
   여의도: { id: "seoul-yeouido-station", name: "여의도역", mode: "subway" },
   합정: { id: "seoul-hapjeong-station", name: "합정역", mode: "subway" },
+  평촌역: { id: "anyang-pyeongchon-academy-street", name: "평촌역.학원가", mode: "bus" },
+  마곡나루역: { id: "seoul-magongnaru-station", name: "마곡나루역", mode: "subway" },
 };
 
 export function findNearestStop(placeName: string): Stop | undefined {
@@ -64,6 +66,21 @@ const ROUTES: Record<string, RouteExample> = {
       line: "2호선",
       from: HONGDAE_SUBWAY,
       to: STOPS_BY_PLACE["합정"],
+    },
+  },
+  "anyang-pyeongchon-academy-street->seoul-magongnaru-station": {
+    firstLeg: {
+      mode: "bus",
+      line: "5623",
+      from: STOPS_BY_PLACE["평촌역"],
+      to: STOPS_BY_PLACE["여의도"],
+    },
+    transferStop: STOPS_BY_PLACE["여의도"],
+    nextLeg: {
+      mode: "subway",
+      line: "9호선",
+      from: STOPS_BY_PLACE["여의도"],
+      to: STOPS_BY_PLACE["마곡나루역"],
     },
   },
 };

@@ -27,6 +27,18 @@ describe("findNearestStop", () => {
     expect(stop?.name).toBe("합정역");
   });
 
+  test("평촌역을 입력하면 평촌역.학원가 정류장을 반환한다", () => {
+    const stop = findNearestStop("평촌역");
+
+    expect(stop?.name).toBe("평촌역.학원가");
+  });
+
+  test("마곡나루역을 입력하면 마곡나루역을 반환한다", () => {
+    const stop = findNearestStop("마곡나루역");
+
+    expect(stop?.name).toBe("마곡나루역");
+  });
+
   test("예시 데이터에 없는 지명을 입력하면 undefined를 반환한다", () => {
     const stop = findNearestStop("부산역");
 
@@ -61,6 +73,20 @@ describe("findRoute", () => {
     expect(route?.nextLeg.mode).toBe("subway");
     expect(route?.nextLeg.line).toBe("2호선");
     expect(route?.nextLeg.to.name).toBe("합정역");
+  });
+
+  test("평촌역.학원가에서 마곡나루역까지는 여의도역에서 버스로 지하철 9호선으로 환승하는 경로를 반환한다", () => {
+    const origin = findNearestStop("평촌역")!;
+    const destination = findNearestStop("마곡나루역")!;
+
+    const route = findRoute(origin, destination);
+
+    expect(route?.firstLeg.mode).toBe("bus");
+    expect(route?.firstLeg.to.name).toBe("여의도역");
+    expect(route?.transferStop.name).toBe("여의도역");
+    expect(route?.nextLeg.mode).toBe("subway");
+    expect(route?.nextLeg.line).toBe("9호선");
+    expect(route?.nextLeg.to.name).toBe("마곡나루역");
   });
 
   test("예시 데이터에 없는 조합을 넣으면 undefined를 반환한다", () => {
