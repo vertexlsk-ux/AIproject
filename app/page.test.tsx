@@ -1,16 +1,41 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 
 import Home from "@/app/page";
 
-test("홈 화면은 시작 안내 제목과 배포 링크를 보여준다", () => {
+function search(origin: string, destination: string) {
+  fireEvent.change(screen.getByLabelText("출발지"), {
+    target: { value: origin },
+  });
+  fireEvent.change(screen.getByLabelText("목적지"), {
+    target: { value: destination },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "경로 찾기" }));
+}
+
+test("예시 지명으로 경로를 찾으면 환승 지점을 포함한 경로가 표시된다", () => {
   render(<Home />);
 
-  expect(
-    screen.getByRole("heading", { level: 1, name: /To get started/i })
-  ).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /Deploy Now/i })).toHaveAttribute(
-    "href",
-    expect.stringContaining("vercel.com/new")
-  );
+  search("판교역", "잠실역");
+
+  expect(screen.getAllByText(/강남역/).length).toBeGreaterThan(0);
+  expect(screen.getByText(/버스 9407/)).toBeInTheDocument();
+  expect(screen.getAllByText(/지하철 2호선/).length).toBeGreaterThan(0);
+});
+
+test("환승 지점에서 도착 정보 확인을 누르면 도착 예정 시간이 표시된다", () => {
+  render(<Home />);
+
+  search("판교역", "잠실역");
+  fireEvent.click(screen.getByRole("button", { name: "도착 정보 확인" }));
+
+  expect(screen.getByText(/도착까지/)).toBeInTheDocument();
+});
+
+test("예시 데이터에 없는 지명을 입력하면 안내 메시지가 표시된다", () => {
+  render(<Home />);
+
+  search("부산역", "잠실역");
+
+  expect(screen.getByText(/예시 데이터에 있는 지명을 입력해 주세요/)).toBeInTheDocument();
 });
