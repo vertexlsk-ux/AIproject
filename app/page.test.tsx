@@ -13,7 +13,7 @@ function search(origin: string, destination: string) {
   fireEvent.click(screen.getByRole("button", { name: "경로 찾기" }));
 }
 
-test("경로를 찾으면 현재 시각 기준 출발역 시각과 환승역 도착 예정 시각이 표시된다", () => {
+test("경로를 찾으면 출발역 아래에 출발 시각, 환승역 아래에 도착·환승 열차 출발 시각이 구분되어 표시된다", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
 
@@ -22,9 +22,10 @@ test("경로를 찾으면 현재 시각 기준 출발역 시각과 환승역 도
 
     search("판교역", "잠실역");
 
-    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35이 표시돼야 한다.
-    expect(screen.getByText(/09:00/)).toBeInTheDocument();
-    expect(screen.getByText(/09:35/)).toBeInTheDocument();
+    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35, 거기에 환승 대기(5분)를 더한 09:40.
+    expect(screen.getByText(/출발 시각 09:00/)).toBeInTheDocument();
+    expect(screen.getByText(/도착 예정 09:35/)).toBeInTheDocument();
+    expect(screen.getByText(/환승 열차\s*출발 예정 09:40/)).toBeInTheDocument();
   } finally {
     vi.useRealTimers();
   }

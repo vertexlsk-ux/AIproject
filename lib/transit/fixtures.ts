@@ -173,16 +173,27 @@ export function findRoute(origin: Stop, destination: Stop): RouteExample | undef
 export type Schedule = {
   departureTime: Date;
   transferArrivalTime: Date;
+  connectingDepartureTime: Date;
 };
+
+// 환승역에 도착해서 다음 열차/버스가 출발할 때까지 걸린다고 가정하는 대기 시간.
+const TRANSFER_WAIT_MINUTES = 5;
 
 /**
  * 경로찾기를 누른 시각을 출발역 시각으로 삼아, 첫 구간의 예상 소요 시간만큼 더한
- * 환승역 도착 예정 시각을 계산한다. 실제 열차 시각표를 조회하지 않는 추정치다.
+ * 환승역 도착 예정 시각과, 거기에 환승 대기 시간을 더한 환승 열차 출발 예정 시각을
+ * 계산한다. 실제 열차 시각표를 조회하지 않는 추정치다.
  */
 export function estimateSchedule(route: RouteExample, now: Date): Schedule {
+  const transferArrivalTime = new Date(now.getTime() + route.firstLeg.durationMinutes * 60_000);
+  const connectingDepartureTime = new Date(
+    transferArrivalTime.getTime() + TRANSFER_WAIT_MINUTES * 60_000
+  );
+
   return {
     departureTime: now,
-    transferArrivalTime: new Date(now.getTime() + route.firstLeg.durationMinutes * 60_000),
+    transferArrivalTime,
+    connectingDepartureTime,
   };
 }
 

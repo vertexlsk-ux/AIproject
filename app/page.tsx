@@ -144,19 +144,36 @@ export default function Home() {
               <CardTitle>추천 경로</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm text-foreground">
-              <p>
-                {result.origin.name} → {legLabel(result.route.firstLeg)} →{" "}
-                <span className="font-medium">{result.route.transferStop.name}</span>{" "}
-                (환승) → {legLabel(result.route.nextLeg)} → {result.destination.name}
-              </p>
+              <div className="flex flex-col gap-1.5">
+                <div>
+                  <p className="font-medium">{result.origin.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    출발 시각 {formatTime(result.schedule.departureTime)}
+                  </p>
+                </div>
 
-              <p className="text-muted-foreground">
-                출발역 시각 {formatTime(result.schedule.departureTime)} · 환승역 도착 예정{" "}
-                {formatTime(result.schedule.transferArrivalTime)}
-                <span className="block text-xs">
+                <p className="pl-1 text-xs text-muted-foreground">
+                  ↓ {legLabel(result.route.firstLeg)}
+                </p>
+
+                <div>
+                  <p className="font-medium">{result.route.transferStop.name} (환승)</p>
+                  <p className="text-xs text-muted-foreground">
+                    도착 예정 {formatTime(result.schedule.transferArrivalTime)} · 환승 열차
+                    출발 예정 {formatTime(result.schedule.connectingDepartureTime)}
+                  </p>
+                </div>
+
+                <p className="pl-1 text-xs text-muted-foreground">
+                  ↓ {legLabel(result.route.nextLeg)}
+                </p>
+
+                <p className="font-medium">{result.destination.name}</p>
+
+                <p className="text-xs text-muted-foreground">
                   (실제 시각표가 아닌, 현재 시각 기준 추정치예요)
-                </span>
-              </p>
+                </p>
+              </div>
 
               <div className="flex flex-col gap-2 rounded-2xl bg-muted p-4">
                 <p className="text-sm font-medium text-foreground">

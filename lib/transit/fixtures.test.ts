@@ -218,4 +218,25 @@ describe("estimateSchedule", () => {
     // firstLeg.durationMinutes는 22분이므로 09:00 + 22분 = 09:22.
     expect(schedule.transferArrivalTime).toEqual(new Date(2026, 0, 1, 9, 22, 0));
   });
+
+  test("환승할 열차의 출발 예정 시각은 환승역 도착 예정 시각 + 환승 대기 시간이다", () => {
+    const route = findRoute(findNearestStop("평촌역")!, findNearestStop("마곡나루역")!)!;
+    const now = new Date(2026, 0, 1, 9, 0, 0);
+
+    const schedule = estimateSchedule(route, now);
+
+    // 도착 예정 09:22에 환승 대기 시간(5분)을 더한 09:27.
+    expect(schedule.connectingDepartureTime).toEqual(new Date(2026, 0, 1, 9, 27, 0));
+  });
+
+  test("환승할 열차의 출발 예정 시각은 도착 예정 시각과 다르다", () => {
+    const route = findRoute(findNearestStop("판교역")!, findNearestStop("잠실역")!)!;
+    const now = new Date(2026, 0, 1, 9, 0, 0);
+
+    const schedule = estimateSchedule(route, now);
+
+    expect(schedule.connectingDepartureTime.getTime()).toBeGreaterThan(
+      schedule.transferArrivalTime.getTime()
+    );
+  });
 });
