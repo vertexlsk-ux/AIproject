@@ -103,7 +103,7 @@ export default function Home() {
             <div className="flex w-full flex-col gap-4">
               <div className="flex flex-col gap-1 text-center sm:text-left">
                 <h1 className="font-heading text-2xl font-semibold text-foreground">
-                  환승 도착 알리미
+                  스마트 환승
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   출발지와 목적지를 입력하면 환승 지점에서 탈 다음 버스·지하철의 도착 예정
