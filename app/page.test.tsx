@@ -22,9 +22,9 @@ test("경로를 찾으면 출발역 아래에 출발 시각, 환승역 아래에
 
     search("판교역", "잠실역");
 
-    // firstLeg.durationMinutes(35분)만큼 09:00에 더한 09:35.
-    expect(screen.getByText(/출발 시각 09:00/)).toBeInTheDocument();
-    expect(screen.getByText(/도착 예정 09:35/)).toBeInTheDocument();
+    // legs[0].durationMinutes(35분)만큼 09:00에 더한 09:35.
+    expect(screen.getByText(/출발 09:00/)).toBeInTheDocument();
+    expect(screen.getByText(/도착 09:35/)).toBeInTheDocument();
   } finally {
     vi.useRealTimers();
   }
@@ -40,14 +40,56 @@ test("경로를 찾으면 환승 지점에서 탈 다음 교통편의 출발 예
     search("판교역", "잠실역");
 
     // 도착 예정 09:35에 2호선 평시 배차간격(6분)을 1~5번 더한 값들.
-    expect(screen.getByText(/09:41/)).toBeInTheDocument();
-    expect(screen.getByText(/09:47/)).toBeInTheDocument();
-    expect(screen.getByText(/09:53/)).toBeInTheDocument();
-    expect(screen.getByText(/09:59/)).toBeInTheDocument();
-    expect(screen.getByText(/10:05/)).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "도착 정보 확인" })
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("09:41")).toBeInTheDocument();
+    expect(screen.getByText("09:47")).toBeInTheDocument();
+    expect(screen.getByText("09:53")).toBeInTheDocument();
+    expect(screen.getByText("09:59")).toBeInTheDocument();
+    expect(screen.getByText("10:05")).toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("경로를 찾은 직후에는 이전 버튼이 비활성화되어 있다", () => {
+  render(<Home />);
+
+  search("판교역", "잠실역");
+
+  expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();
+});
+
+test("다음 버튼을 누르면 출발 시각과 도착 예정 시각이 배차간격만큼 늦어진다", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
+
+  try {
+    render(<Home />);
+
+    search("판교역", "잠실역");
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+
+    // legs[0](버스, 기본 배차간격 평시 10분)만큼 09:00에서 09:10으로, 도착 예정도 09:45로 늦어진다.
+    expect(screen.getByText(/출발 09:10/)).toBeInTheDocument();
+    expect(screen.getByText(/도착 09:45/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이전" })).not.toBeDisabled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("다음을 누른 뒤 이전을 누르면 원래 출발 시각으로 돌아온다", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
+
+  try {
+    render(<Home />);
+
+    search("판교역", "잠실역");
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    fireEvent.click(screen.getByRole("button", { name: "이전" }));
+
+    expect(screen.getByText(/출발 09:00/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();
   } finally {
     vi.useRealTimers();
   }
@@ -80,12 +122,31 @@ test("같은 노선(4호선)의 두 역을 입력하면 환승이 필요 없다�
   expect(screen.getByText(/같은 노선이라 환승이/)).toBeInTheDocument();
 });
 
-test("평촌역→마곡나루역 경로에서도 환승 지점에서 탈 다음 교통편의 출발 예정 시각 목록이 표시된다", () => {
+test("평촌역에서 잠실역까지 경로를 찾을 수 있다 (4호선 역과 손으로 만든 예시 밖의 조합)", () => {
   render(<Home />);
 
-  search("평촌역", "마곡나루역");
+  search("평촌역", "잠실역");
 
-  expect(screen.getByText(/다음 \d{2}:\d{2}/)).toBeInTheDocument();
+  expect(screen.getAllByText(/잠실역/).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/예시 경로는 아직/)).not.toBeInTheDocument();
+});
+
+test("평촌역에서 도곡역까지 경로를 찾을 수 있다", () => {
+  render(<Home />);
+
+  search("평촌역", "도곡역");
+
+  expect(screen.getAllByText(/도곡역/).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/예시 경로는 아직/)).not.toBeInTheDocument();
+});
+
+test("환승이 두 번 필요한 경로는 환승역 두 곳 모두 출발 예정 시각이 3개씩 표시된다", () => {
+  render(<Home />);
+
+  search("모란역", "청량리역");
+
+  const chipLists = screen.getAllByText(/^\d{2}:\d{2}$/);
+  expect(chipLists.length).toBe(6); // 환승역 2곳 × 3개
 });
 
 test("예시 데이터에 없는 지명을 입력하면 안내 메시지가 표시된다", () => {
