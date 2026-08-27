@@ -30,6 +30,37 @@ test("경로를 찾으면 출발역 아래에 출발 시각, 환승역 아래에
   }
 });
 
+test("환승역 도착 시간 오른쪽에 출발 시간도 함께(굵게) 표시된다", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));
+
+  try {
+    render(<Home />);
+
+    search("판교역", "잠실역");
+
+    // 도착 09:35 · 출발(2호선 평시 배차간격 6분 첫 값) 09:41이 한 요소 안에 함께 표시된다.
+    const transferTime = screen.getByText(/도착 09:35 · 출발 09:41/);
+    expect(transferTime).toBeInTheDocument();
+    expect(transferTime).toHaveClass("font-bold");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("이전/다음 버튼이 추천 경로 텍스트보다 앞에 나온다", () => {
+  render(<Home />);
+
+  search("판교역", "잠실역");
+
+  const routeLabel = screen.getByText("추천 경로");
+  const prevButton = screen.getByRole("button", { name: "이전" });
+  // DOM 순서상 이전 버튼이 "추천 경로"보다 앞에 있어야 한다.
+  expect(
+    prevButton.compareDocumentPosition(routeLabel) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
+});
+
 test("경로를 찾으면 환승 지점에서 탈 다음 교통편의 출발 예정 시각이 5개 목록으로 표시된다", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 0, 1, 9, 0, 0));

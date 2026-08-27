@@ -26,6 +26,21 @@ function legLabel(leg: Leg) {
   return leg.mode === "bus" ? `버스 ${leg.line}` : `지하철 ${leg.line}`;
 }
 
+// 환승역 시각을 강조할 때 쓰는 색상 팔레트. 매번 이 중 하나를 무작위로 고른다.
+const HIGHLIGHT_COLORS = [
+  "#dc2626", // red
+  "#2563eb", // blue
+  "#16a34a", // green
+  "#9333ea", // purple
+  "#ea580c", // orange
+  "#db2777", // pink
+  "#0d9488", // teal
+];
+
+function randomHighlightColor() {
+  return HIGHLIGHT_COLORS[Math.floor(Math.random() * HIGHLIGHT_COLORS.length)];
+}
+
 export default function Home() {
   const [originInput, setOriginInput] = useState("");
   const [destinationInput, setDestinationInput] = useState("");
@@ -142,6 +157,25 @@ export default function Home() {
               {result.status === "found" && schedule && (
                 <Card>
                   <CardContent className="flex flex-col gap-2 py-4 text-sm text-foreground">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={departureStep <= 0}
+                        onClick={() => setDepartureStep((step) => Math.max(0, step - 1))}
+                      >
+                        이전
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDepartureStep((step) => step + 1)}
+                      >
+                        다음
+                      </Button>
+                      <p className="text-[11px] text-muted-foreground">출발 시각 옮겨보기</p>
+                    </div>
+
                     <p className="text-xs font-medium text-muted-foreground">추천 경로</p>
 
                     <div className="flex flex-col gap-0.5">
@@ -162,10 +196,13 @@ export default function Home() {
                             <p>
                               <span className="font-medium">
                                 {result.route.transferStops[i].name} (환승)
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {" "}
-                                · 도착 {formatTime(schedule.transferArrivalTimes[i])}
+                              </span>{" "}
+                              <span
+                                className="font-bold"
+                                style={{ color: randomHighlightColor() }}
+                              >
+                                도착 {formatTime(schedule.transferArrivalTimes[i])} · 출발{" "}
+                                {formatTime(schedule.upcomingDeparturesByTransfer[i][0])}
                               </span>
                             </p>
                           ) : (
@@ -178,25 +215,6 @@ export default function Home() {
                     <p className="text-[11px] text-muted-foreground">
                       실제 시각표가 아닌 현재 시각 기준 추정치예요
                     </p>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={departureStep <= 0}
-                        onClick={() => setDepartureStep((step) => Math.max(0, step - 1))}
-                      >
-                        이전
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDepartureStep((step) => step + 1)}
-                      >
-                        다음
-                      </Button>
-                      <p className="text-[11px] text-muted-foreground">출발 시각 옮겨보기</p>
-                    </div>
 
                     {result.route.transferStops.map((stop, i) => (
                       <div key={i} className="flex flex-col gap-1 rounded-xl bg-muted p-2.5">
